@@ -1,0 +1,26 @@
+# 1. 选择轻量级基础镜像
+FROM python:3.10
+
+# 2. 设置工作目录
+WORKDIR /app
+
+# 3. 复制依赖并安装
+COPY requirements.txt .
+RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
+
+# 4. 只复制代码目录（模型和数据通过外部挂载）
+COPY ./app ./app
+
+# 5. 仅暴露前端端口
+EXPOSE 8501
+
+# 6. 仅启动 Streamlit 前端服务
+WORKDIR /app/app
+CMD ["streamlit", "run", "app.py", "--server.port", "8501", "--server.address", "0.0.0.0"]
+
+# # 5. 暴露两个端口（FastAPI 和 Streamlit）
+# EXPOSE 8001 8501
+
+# # 7. 使用启动脚本作为默认命令
+# # CMD ["app/start.sh"]
+# CMD ["bash", "-c", "(cd /app/app && uvicorn api_server:app --host 0.0.0.0 --port 8001) & (cd /app/app && streamlit run app.py --server.port 8501 --server.address 0.0.0.0)"]

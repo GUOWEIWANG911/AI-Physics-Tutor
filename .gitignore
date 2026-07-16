@@ -1,0 +1,9 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+tutor_env/
+models/
+data/
+hf_cache/
+chroma_cache/

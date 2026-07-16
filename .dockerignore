@@ -1,0 +1,19 @@
+# 排除虚拟环境
+tutor_env/
+.venv/
+venv/
+
+# 排除 Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+
+# 排除环境变量文件（防止密钥泄露）
+.env
+
+# 排除本地生成的向量数据库（让服务器重新生成或单独挂载）
+data/chroma_db/
+
+# 排除 Git 和测试文件
+.git
+tests/

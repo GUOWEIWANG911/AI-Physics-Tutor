@@ -1,0 +1,165 @@
+version: '3.8'
+
+services:
+  # 1. Redis 服务
+  redis:
+    image: redis:7-alpine
+    container_name: myagent-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: always
+
+  # 2. 后端服务 (FastAPI)
+  backend:
+    build: 
+      context: .
+      dockerfile: Dockerfile.backend # 假设你为后端创建了独立的Dockerfile
+    container_name: myagent-backend
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - HF_ENDPOINT=https://hf-mirror.com
+    volumes:
+      - ./models:/app/models
+      - ./data:/app/data
+      - ./hf_cache:/root/.cache/huggingface
+      - ./chroma_cache:/root/.cache/chroma
+      - C:/Users/Acho/.cache/chroma/onnx_models:/root/.cache/chroma/onnx_models
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: always
+
+  # 3. 前端服务 (Streamlit)
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend # 假设你为前端创建了独立的Dockerfile
+    container_name: myagent-frontend
+    ports:
+      - "8501:8501"
+    environment:
+      # 👇 关键修改：为前端服务显式设置 BACKEND_URL 环境变量
+      - BACKEND_URL=http://backend:8001/ask
+    depends_on:
+      - backend
+    restart: always
+
+volumes:
+  redis-data:
+
+# ====================================================================== v2
+
+# version: '3.8'
+
+# services:
+#   # 1. Redis 服务
+#   redis:
+#     image: redis:7-alpine
+#     container_name: myagent-redis
+#     ports:
+#       - "6379:6379"
+#     volumes:
+#       - redis-data:/data
+#     healthcheck:
+#       test: ["CMD", "redis-cli", "ping"]
+#       interval: 5s
+#       timeout: 3s
+#       retries: 5
+#     restart: always
+
+#   # 2. AI 辅导系统服务
+#   ai-tutor:
+#     build: .
+#     container_name: myagent-api
+#     ports:
+#       - "8001:8001"
+#       - "8501:8501"
+#     env_file:
+#       - .env
+#     environment:
+#       - REDIS_HOST=redis
+#       - REDIS_PORT=6379
+#       # 👇 关键修改：设置环境变量，让所有 Hugging Face 相关的下载都走国内镜像
+#       - HF_ENDPOINT=https://hf-mirror.com
+#     volumes:
+#       - ./models:/app/models
+#       - ./data:/app/data
+#       # 👇 保留这两个缓存目录，让模型下载后能持久化，下次启动就不用再下了
+#       - ./hf_cache:/root/.cache/huggingface
+#       - ./chroma_cache:/root/.cache/chroma
+#       # 👇 已删除：不再需要手动挂载 chroma 模型目录
+#       # - C:/Users/Acho/.cache/chroma/onnx_models:/root/.cache/chroma/onnx_models
+#     depends_on:
+#       redis:
+#         condition: service_healthy
+#     restart: always
+
+# volumes:
+#   redis-data:
+
+# ================================================================  V1
+
+# version: '3.8'
+
+# services:
+#   # 1. Redis 服务
+#   redis:
+#     image: redis:7-alpine  # 使用轻量级的 Redis 镜像
+#     container_name: myagent-redis
+#     ports:
+#       - "6379:6379"
+#     volumes:
+#       - redis-data:/data   # 持久化 Redis 数据
+#     # 增加健康检查，确保 Redis 真正就绪
+#     healthcheck:
+#       test: ["CMD", "redis-cli", "ping"]
+#       interval: 5s
+#       timeout: 3s
+#       retries: 5
+#     restart: always
+
+#   # 2. AI 辅导系统服务
+#   ai-tutor:
+#     build: .               # 使用当前目录的 Dockerfile 构建
+#     container_name: myagent-api
+#     ports:
+#       - "8001:8001"
+#       - "8501:8501"
+#     # 自动加载当前目录下的 .env 文件（确保 DASHSCOPE_API_KEY 等变量生效）
+#     env_file:
+#       - .env
+#     environment:
+#       # 告诉代码 Redis 的地址（使用 docker 网络别名）
+#       - REDIS_HOST=redis
+#       - REDIS_PORT=6379
+#       # 使用国内镜像加速模型下载
+#       - HF_ENDPOINT=https://hf-mirror.com
+#     volumes:
+#       # 将宿主机的 models 和 data 目录挂载进容器
+#       - ./models:/app/models
+#       - ./data:/app/data
+#       # 👇 新增：把 HuggingFace 的模型缓存目录挂载到宿主机，实现永久缓存
+#       - ./hf_cache:/root/.cache/huggingface
+#       - ./chroma_cache:/root/.cache/chroma
+#       # 👇 新增：把手动下载的 chroma 模型挂载到它默认的下载目录
+#       # 注意：这里使用了你的绝对路径，并且将反斜杠 \ 替换为了正斜杠 /
+#       - C:/Users/Acho/.cache/chroma/onnx_models:/root/.cache/chroma/onnx_models
+#     depends_on:
+#       redis:              # 确保 Redis 先启动
+#         condition: service_healthy  # 等待 Redis 健康后再启动 AI 服务
+#     restart: always
+
+# volumes:
+#   redis-data:
