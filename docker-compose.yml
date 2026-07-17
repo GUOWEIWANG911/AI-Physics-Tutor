@@ -35,7 +35,7 @@ services:
       - ./data:/app/data
       - ./hf_cache:/root/.cache/huggingface
       - ./chroma_cache:/root/.cache/chroma
-      - C:/Users/Acho/.cache/chroma/onnx_models:/root/.cache/chroma/onnx_models
+      # - C:/Users/Acho/.cache/chroma/onnx_models:/root/.cache/chroma/onnx_models
     depends_on:
       redis:
         condition: service_healthy
