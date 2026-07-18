@@ -49,9 +49,14 @@ services:
     container_name: myagent-frontend
     # ports:
     #   - "8501:8501"
+    command: >
+      streamlit run app.py
+      --server.enableXsrfProtection false
+      --server.enableCORS false
+      --server.headless true
     environment:
       # 👇 关键修改：为前端服务显式设置 BACKEND_URL 环境变量
-      - BACKEND_URL=http://backend:8001/ask
+      - BACKEND_URL=/ask
     depends_on:
       - backend
     restart: always
