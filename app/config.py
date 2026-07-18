@@ -58,3 +58,11 @@ TEXTBOOK_FILES = [
     os.path.join(TEXTBOOK_DIR, "physics_9a.pdf"),
     os.path.join(TEXTBOOK_DIR, "physics_9b.pdf"),
 ]
+
+TEXTBOOK_MAPPING = {
+    # 格式: "英文文件名": "人类可读的教材标识"
+    "physics_8a.pdf": "苏教版物理八年级上册",
+    "physics_8b.pdf": "苏教版物理八年级下册",
+    "physics_9a.pdf": "苏教版物理九年级上册",
+    "physics_9b.pdf": "苏教版物理九年级下册",
+}

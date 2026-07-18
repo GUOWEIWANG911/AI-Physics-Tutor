@@ -3,7 +3,7 @@ import os
 import re
 import time
 import sqlite3
-from config import CHROMA_DB_PATH, TEXTBOOK_FILES
+from config import CHROMA_DB_PATH, TEXTBOOK_FILES, TEXTBOOK_MAPPING
 from config import LEARNING_DB_PATH
 
 from llm_factory import get_llm
@@ -92,7 +92,7 @@ def retrieval_agent(state, vectorstore, cache_manager, reranker_model):
     # [阶段一：初步召回]
     # 先把 k 调大（比如 10），尽可能多地捞出可能相关的候选内容，防止漏掉正确答案
     step1_start = time.perf_counter()
-    candidate_docs = vectorstore.similarity_search(search_query, k=10)
+    candidate_docs = vectorstore.similarity_search(search_query, k=5)
     print(f"   ⏱️ [阶段一: 向量召回] 耗时: {time.perf_counter() - step1_start:.3f}秒")
 
     # [阶段二：Rerank 重排]
@@ -107,8 +107,30 @@ def retrieval_agent(state, vectorstore, cache_manager, reranker_model):
     scored_docs = sorted(zip(candidate_docs, scores), key=lambda x: x[1], reverse=True)
     reranked_docs = [doc for doc, score in scored_docs[:3]]
 
+    # 构建结构化证据列表（供 Tutor Agent 标注使用）
+    retrieved_items = []
+    for doc in reranked_docs:
+        # 安全提取元数据（防止 KeyError）
+        source = doc.metadata.get("source", "苏教版物理")
+        page = doc.metadata.get("page", 0)
+        
+        try:
+            page_num = int(doc.metadata.get("page", 1))
+        except (ValueError, TypeError):
+            page_num = "未知"
+            
+        retrieved_items.append({
+            "content": doc.page_content,
+            "source": source,
+            "page": f"第{page_num}页"
+        })
+
+    # 将结构化数据存入 state（关键！）
+    state["retrieved_evidence"] = retrieved_items
+
     # 将重排后的结果拼接成上下文
-    context = "\n\n".join([doc.page_content for doc in reranked_docs])
+    # context = "\n\n".join([doc.page_content for doc in reranked_docs])
+    context = "\n\n".join([item["content"] for item in retrieved_items])
 
     # 将检索结果存入缓存
     cache_manager.set(cache_key, context)
@@ -126,6 +148,10 @@ def tutor_agent(state, llm):
     """
     职责：专心扮演老师，结合资料和历史，启发学生
     """
+    # . 获取结构化证据（用于生成标注）
+    evidence = state.get("retrieved_evidence", [])
+
+    # 2. 获取纯文本上下文（用于知识理解，保持不变）
     context = state.get("retrieved_context", "")
     student_summary = state.get("student_summary", "")
     user_question = state["user_question"]
@@ -133,9 +159,29 @@ def tutor_agent(state, llm):
 
     dynamic_strategies = state.get("dynamic_strategies", "")
 
+    # 动态生成标注指令（关键！）
+    citation_instruction = ""
+    if evidence:
+        # 取最相关的一条作为标注模板
+        top_evidence = evidence[0]
+        citation_instruction = f"""
+【教材标注强制要求】：
+- 回答中涉及知识点时，必须在句末标注来源。
+- 标注格式严格为：**（来源：{top_evidence['source']} {top_evidence['page']}）**
+- 示例："根据光的干涉原理，当光程差为波长整数倍时出现明条纹**（来源：{top_evidence['source']} {top_evidence['page']}）**"
+- 若当前问题无法从教材中找到依据，请明确告知学生"教材暂未收录此内容"，严禁编造。
+"""
+    else:
+        citation_instruction = """
+【教材标注要求】：
+- 当前未检索到教材依据，请基于通用物理知识回答，但需注明"此回答未找到教材原文支持"。
+"""
+
+    # 组装 System Pormpt
     system_prompt = f"""你是一个初中理科辅导老师。
 【当前学情】：{student_summary}
 【参考资料】：{context}
+{citation_instruction}
 【辅导要求】：
 1. 优先使用启发式提问，严禁直接给答案，严禁超纲。
 2. 必须结合【历史对话】上下文，不要重复提问，不要答非所问。
@@ -185,6 +231,21 @@ def build_knowledge_base(file_paths, embeddings):
             # 使用 PyPDFLoader 来读取 PDF 文件
             loader = PyPDFLoader(file_path)
             documents = loader.load()
+
+            # === 关键修改：通过映射表注入教材版本 ===
+            filename = os.path.basename(file_path)
+            # 从配置映射表获取人类可读标识（若未配置则回退到文件名）
+            human_readable_source = TEXTBOOK_MAPPING.get(
+                filename, 
+                filename.replace(".pdf", "")  # 安全回退
+            )
+            
+            for doc in documents:
+                # 注入修正后的教材标识（不再是原始路径）
+                doc.metadata["source"] = human_readable_source
+                # 修正页码：0-based → 1-based（人类可读）
+                doc.metadata["page"] = doc.metadata.get("page", 0) + 1
+
             all_documents.extend(documents)
             print(f"成功加载文件：{file_path}")
         except Exception as e:
