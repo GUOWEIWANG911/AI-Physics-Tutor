@@ -53,8 +53,8 @@ MODELS = {
 
 # 这里列出所有需要加载的教材文件名，程序会自动拼接成完整路径
 TEXTBOOK_FILES = [
-    os.path.join(TEXTBOOK_DIR, "物理八年级上.pdf"),
-    os.path.join(TEXTBOOK_DIR, "物理八年级下.pdf"),
-    os.path.join(TEXTBOOK_DIR, "物理九年级上.pdf"),
-    os.path.join(TEXTBOOK_DIR, "物理九年级下.pdf"),
+    os.path.join(TEXTBOOK_DIR, "physics_8a.pdf"),
+    os.path.join(TEXTBOOK_DIR, "physics_8b.pdf"),
+    os.path.join(TEXTBOOK_DIR, "physics_9a.pdf"),
+    os.path.join(TEXTBOOK_DIR, "physics_9b.pdf"),
 ]
