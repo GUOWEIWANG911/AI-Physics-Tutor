@@ -103,7 +103,7 @@ async def root():
     return {"message": "AI 物理辅导系统已成功启动！"}
 
 # 健康检查接口
-@app.get("/health")
+@app.get("/health/")
 async def health_check():
     if is_system_ready:
         return {"status": "ready"}
@@ -111,7 +111,7 @@ async def health_check():
         return {"status": "loading"}
 
 # 7. 定义辅导问答接口
-@app.post("/ask")
+@app.post("/ask/")
 async def ask_tutor(request: QuestionRequest):
     # 处理 session ID（隔离不同学生的对话）
     session_id = request.session_id or str(uuid.uuid4())
