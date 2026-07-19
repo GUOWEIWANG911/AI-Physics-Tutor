@@ -35,7 +35,7 @@ with st.form("question_form", clear_on_submit=True):
 with st.expander("📎 更多输入方式 (语音/拍照/上传)"):
     st.markdown("**⚠️ 以下功能正在开发中，敬请期待！**")
     
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3 = st.columns(3, gap="large")
     
     with col1:
         st.markdown("**🎙️ 语音输入**")
@@ -45,12 +45,12 @@ with st.expander("📎 更多输入方式 (语音/拍照/上传)"):
         
     with col2:
         st.markdown("**📸 拍照识别**")
-        st.button("📷 打开摄像头", disabled=True)
+        st.button("📷 打开摄像头", disabled=True, use_container_width=True)     # use_container_width=True 让按钮填满列宽，和其他组件对齐
         st.caption("拍照解题功能开发中...")
         
     with col3:
         st.markdown("**🖼️ 上传图片**")
-        st.file_uploader("选择文件", type=["png", "jpg"], disabled=True)
+        st.file_uploader("选择文件", type=["png", "jpg"], disabled=True, label_visibility="collapsed")      # label_visibility="collapsed" 隐藏标签，只留上传框，更简洁
         st.caption("图片上传功能开发中...")
 
 # ================= 健康检查 =================
