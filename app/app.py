@@ -74,17 +74,21 @@ if submit_button:
     if not backend_is_ready:
         st.warning("系统还在加载模型哦，请状态变绿后再试！")
     elif user_text.strip():
-        # 1. is_new_chat: 检查当前是不是第一句话（历史记录为空）
-        # 2. is_too_short: 检查字数是否少于4个字
+        # 只有"新对话 + 字数不足 + 是问候语"才拦截
         is_new_chat = len(st.session_state.chat_history) == 0
         is_too_short = len(user_text.strip()) < 4
-        
-        # 👇 只有当是"新对话"且"太短/语气词"时，才拦截
-        if is_new_chat and (is_too_short or user_text.strip() in ["你好", "在吗", "新话题"]):
-            st.warning("请提出具体的物理问题（例如：'干涉条纹的形成条件是什么？'）")
+        is_greeting = user_text.strip() in ["你好", "在吗", "新话题"]
+
+        # 👇 只有三个条件同时满足才拦截，"惯性"不是问候语，所以放行
+        if is_new_chat and is_too_short and is_greeting:
+            st.warning("请提出具体的物理问题（例如：'惯性是什么？'）")
         else:
-            st.session_state.chat_history.append({"role": "user", "content": user_text})
-            
+            # st.session_state.chat_history.append({"role": "user", "content": user_text})
+            payload = {
+                "question": user_text,
+                "session_id": st.session_state.session_id
+            }
+
             message_placeholder = st.empty()
             full_response = ""
 
