@@ -103,6 +103,7 @@ st.divider()
 
 # ================= 统一发送按钮 =================
 if st.button("发送给辅导Agent", type="primary"):
+    st.session_state.text_input = ""    # 重置会话状态
     if not backend_is_ready:
         st.warning("系统还在加载模型哦，请状态变绿后再试！")
     elif user_text.strip():
@@ -151,10 +152,6 @@ if st.button("发送给辅导Agent", type="primary"):
                 # 5. 流式输出结束，显示最终完整结果，并加入历史
                 message_placeholder.markdown(full_response)
                 st.session_state.chat_history.append({"role": "assistant", "content": full_response})
-
-                # 清空输入框
-                st.session_state.text_input = ""    # 重置会话状态
-                st.rerun()  # 立即刷新页面显示placeholder
 
             except Exception as e:
                 st.error(f"请求后端失败: {e}")
