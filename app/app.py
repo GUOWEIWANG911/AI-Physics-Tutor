@@ -29,12 +29,14 @@ if "captured_picture" not in st.session_state:
 # ================= 输入区 =================
 # user_text = st.text_area("文字提问", placeholder="在这里输入你的物理问题...")
 st.subheader("文字提问")
-user_text = st.text_area(
-    "文字提问",
-    # value=st.session_state.text_input,  # 绑定会话状态
-    placeholder="向辅导agent提问", 
-    key="text_input"  # 必须添加key才能重置 
-)
+# 用 form 包裹，clear_on_submit=True 自动清空输入框
+with st.form("question_form", clear_on_submit=True):
+    user_text = st.text_area(
+        "文字提问",
+        placeholder="向辅导 Agent 提问",
+        key="text_input"
+    )
+    submit = st.form_submit_button("发送给辅导Agent", type="primary")
 
 # 2. 语音和图片输入区
 st.subheader("语音输入")
@@ -102,8 +104,8 @@ except Exception:
 st.divider()
 
 # ================= 统一发送按钮 =================
-if st.button("发送给辅导Agent", type="primary"):
-    st.session_state.text_input = ""    # 重置会话状态
+# 用 form 的 submit 变量判断，而不是 st.button
+if submit:
     if not backend_is_ready:
         st.warning("系统还在加载模型哦，请状态变绿后再试！")
     elif user_text.strip():
@@ -168,7 +170,9 @@ if st.button("发送给辅导Agent", type="primary"):
     else:
         st.warning("请先输入文字、录制语音或上传图片哦！")
 
+
 # ================= 历史对话展示区（可选，放在页面底部或侧边栏） =================
+
 st.divider()
 st.subheader("💬 当前会话历史")
 for msg in st.session_state.chat_history:
