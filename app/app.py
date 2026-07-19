@@ -12,7 +12,11 @@ st.caption("支持文字、语音、拍照及图片上传的多模态交互")
 
 # ================= 后端接口配置 =================
 # 使用相对路径，适配 Nginx 反向代理
-FASTAPI_URL = os.getenv("BACKEND_URL", "http://backend:8001/ask/")
+# FASTAPI_URL = os.getenv("BACKEND_URL", "http://backend:8001/ask/")
+backend_base = os.getenv("BACKEND_URL", "http://backend:8001")
+# 确保基础地址不带尾部斜杠，避免拼接出 //ask/
+backend_base = backend_base.rstrip("/")
+FASTAPI_URL = f"{backend_base}/ask/"
 
 # ================= 会话状态初始化 =================
 if "text_input" not in st.session_state:
