@@ -60,7 +60,13 @@ async def lifespan(app: FastAPI):
 
     # 将 CrossEncoder 的初始化包装成一个普通函数，避免 run_in_executor 传参报错
     def load_reranker():
-        return CrossEncoder(RERANKER_MODEL_PATH, device=device)
+        # return CrossEncoder(RERANKER_MODEL_PATH, device=device)
+        return CrossEncoder(
+            RERANKER_MODEL_PATH,
+            device=device,
+            torch_dtype=torch.float16,  # 半精度推理，显存减半，速度翻倍
+            model_kwargs={"device_map": "auto"}  # 自动分配 GPU/CPU
+        )
     
     reranker_model = await loop.run_in_executor(cpu_pool, load_reranker)
 

@@ -92,7 +92,11 @@ def retrieval_agent(state, vectorstore, cache_manager, reranker_model):
     # [阶段一：初步召回]
     # 先把 k 调大（比如 10），尽可能多地捞出可能相关的候选内容，防止漏掉正确答案
     step1_start = time.perf_counter()
-    candidate_docs = vectorstore.similarity_search(search_query, k=5)
+    candidate_docs = vectorstore.similarity_search(
+        search_query, 
+        k=8,
+        score_threshold=0.6  # 过滤低相关文档
+    )
     print(f"   ⏱️ [阶段一: 向量召回] 耗时: {time.perf_counter() - step1_start:.3f}秒")
 
     # [阶段二：Rerank 重排]
@@ -100,7 +104,7 @@ def retrieval_agent(state, vectorstore, cache_manager, reranker_model):
     step2_start = time.perf_counter()
     pairs = [[search_query, doc.page_content] for doc in candidate_docs]
     # 模型进行批量打分，加上 convert_to_numpy=True，确保在 GPU 推理后安全返回分数
-    scores = reranker_model.predict(pairs, convert_to_numpy=True)
+    scores = reranker_model.predict(pairs, batch_size=32, convert_to_numpy=True)
     print(f"   ⏱️ [阶段二: Rerank重排] 耗时: {time.perf_counter() - step2_start:.3f}秒")
 
     # 将文档和分数打包，按分数从高到底排序，取前 3 个
