@@ -81,7 +81,10 @@ with col2:
 
 # 健康检查（适配 Nginx 路径）
 try:
-    health_resp = requests.get(os.getenv("BACKEND_URL", "http://backend:8001").replace("/ask/", "/health/"), timeout=5)
+    # health_resp = requests.get(os.getenv("BACKEND_URL", "http://backend:8001").replace("/ask/", "/health/"), timeout=5)
+    backend_base = os.getenv("BACKEND_URL", "http://backend:8001")
+    health_url = f"{backend_base}/health/"
+    health_resp = requests.get(health_url, timeout=5)
     if health_resp.status_code == 200 and health_resp.json().get("status") == "ready":
         st.success("AI 辅导系统已就绪，可以开始提问啦！")
         backend_is_ready = True
