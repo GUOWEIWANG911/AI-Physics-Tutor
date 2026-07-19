@@ -32,9 +32,10 @@ st.subheader("文字提问")
 # 用 form 包裹，clear_on_submit=True 自动清空输入框
 with st.form("question_form", clear_on_submit=True):
     user_text = st.text_area(
-        "文字提问",
+        "",
         placeholder="向辅导 Agent 提问",
-        key="text_input"
+        height=150,
+        label_visibility="collapsed"
     )
     submit = st.form_submit_button("发送给辅导Agent", type="primary")
 
