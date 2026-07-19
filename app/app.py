@@ -31,7 +31,7 @@ if "captured_picture" not in st.session_state:
 st.subheader("文字提问")
 user_text = st.text_area(
     "文字提问",
-    value=st.session_state.text_input,  # 绑定会话状态
+    # value=st.session_state.text_input,  # 绑定会话状态
     placeholder="向辅导agent提问", 
     key="text_input"  # 必须添加key才能重置 
 )
