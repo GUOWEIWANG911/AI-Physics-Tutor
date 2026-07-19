@@ -2,6 +2,7 @@ import os
 import streamlit as st
 import requests
 import json
+import uuid
 from PIL import Image
 
 # ================= 页面基础配置 =================
@@ -17,6 +18,9 @@ FASTAPI_URL = f"{backend_base}/ask/"
 # ================= 会话状态初始化 =================
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
+
+if "session_id" not in st.session_state:
+    st.session_state.session_id = str(uuid.uuid4())
 
 # ================= 输入区 =================
 st.subheader("文字提问")
@@ -93,7 +97,6 @@ if submit_button:
             full_response = ""
 
             try:
-                payload = {"question": user_text}
                 response = requests.post(FASTAPI_URL, json=payload, stream=True, timeout=300)
                 response.raise_for_status()
 
