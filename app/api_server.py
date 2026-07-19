@@ -64,8 +64,9 @@ async def lifespan(app: FastAPI):
         return CrossEncoder(
             RERANKER_MODEL_PATH,
             device=device,
-            torch_dtype=torch.float16,  # 半精度推理，显存减半，速度翻倍
-            model_kwargs={"device_map": "auto"}  # 自动分配 GPU/CPU
+            model_kwargs={
+                "torch_dtype": torch.float16,  # ✅ 半精度推理，必须放在 model_kwargs 里
+            }
         )
     
     reranker_model = await loop.run_in_executor(cpu_pool, load_reranker)
