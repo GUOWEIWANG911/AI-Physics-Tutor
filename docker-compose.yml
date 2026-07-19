@@ -56,7 +56,7 @@ services:
       --server.headless true
     environment:
       # 为前端服务显式设置 BACKEND_URL 环境变量
-      - BACKEND_URL=/ask/
+      - BACKEND_URL=http://backend:8001
     depends_on:
       - backend
     restart: always
