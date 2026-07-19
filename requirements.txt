@@ -8,6 +8,8 @@ langchain>=0.1.0
 langchain-community>=0.0.10
 langchain-core>=0.1.0
 langchain-text-splitters>=0.0.1
+torch==2.1.0+cpu
+--index-url https://download.pytorch.org/whl/cpu
 sentence-transformers>=2.2.2
 chromadb>=0.4.20
 
