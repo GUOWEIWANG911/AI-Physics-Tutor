@@ -50,7 +50,10 @@ async def lifespan(app: FastAPI):
         print(f"【调试】embeddings 初始化成功，类型: {type(embeddings)}")
         llm = await loop.run_in_executor(cpu_pool, get_llm)
     except Exception as e:
+        import traceback
         print(f"【调试】embeddings 初始化失败: {e}")
+        traceback.print_exc()  # 这会打印完整的错误堆栈
+        return None
 
     # 加载知识库
     print("正在加载知识库...")
