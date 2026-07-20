@@ -94,8 +94,13 @@ def retrieval_agent(state, vectorstore, cache_manager, reranker_model):
     step1_start = time.perf_counter()
     candidate_docs = vectorstore.similarity_search(
         search_query, 
-        k=8,
-        score_threshold=0.6  # 过滤低相关文档
+        k=6,
+        search_type="mmr",
+        search_kwargs={
+            "fetch_k": 20,
+            "lambda_mult": 0.5
+        }
+        # score_threshold=0.6  # 过滤低相关文档
     )
     print(f"   ⏱️ [阶段一: 向量召回] 耗时: {time.perf_counter() - step1_start:.3f}秒")
 
@@ -259,7 +264,7 @@ def build_knowledge_base(file_paths, embeddings):
         raise ValueError("没有成功加载任何文档，请检查 PDF 路径是否正确！")
 
     # 文本分块
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size = 500, chunk_overlap = 50)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size = 1000, chunk_overlap = 200)
     chunks = text_splitter.split_documents(all_documents)
     print(f"【调试信息】文本分块完成，共 {len(chunks)} 个片段，准备开始生成向量...")
 
