@@ -261,6 +261,7 @@ def build_knowledge_base(file_paths, embeddings):
     # 文本分块
     text_splitter = RecursiveCharacterTextSplitter(chunk_size = 500, chunk_overlap = 50)
     chunks = text_splitter.split_documents(all_documents)
+    print(f"【调试信息】文本分块完成，共 {len(chunks)} 个片段，准备开始生成向量...")
 
     # 生成向量数据库
     vectorstore = Chroma.from_documents(documents=chunks, embedding=embeddings, persist_directory=db_path)
