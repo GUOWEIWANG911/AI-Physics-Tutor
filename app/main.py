@@ -94,24 +94,24 @@ def retrieval_agent(state, vectorstore, cache_manager, reranker_model):
     step1_start = time.perf_counter()
     candidate_docs = vectorstore.similarity_search(
         search_query, 
-        k=3
+        k=10
         # score_threshold=0.6  # 过滤低相关文档
     )
     print(f"   ⏱️ [阶段一: 向量召回] 耗时: {time.perf_counter() - step1_start:.3f}秒")
 
-    # [阶段二：Rerank 重排]
-    # 将查询词和每个候选文档组成对（pairs）
-    step2_start = time.perf_counter()
-    pairs = [[search_query, doc.page_content] for doc in candidate_docs]
-    # 模型进行批量打分，加上 convert_to_numpy=True，确保在 GPU 推理后安全返回分数
-    scores = reranker_model.predict(pairs, batch_size=4, convert_to_numpy=True)
-    print(f"   ⏱️ [阶段二: Rerank重排] 耗时: {time.perf_counter() - step2_start:.3f}秒")
+    # # [阶段二：Rerank 重排]
+    # # 将查询词和每个候选文档组成对（pairs）
+    # step2_start = time.perf_counter()
+    # pairs = [[search_query, doc.page_content] for doc in candidate_docs]
+    # # 模型进行批量打分，加上 convert_to_numpy=True，确保在 GPU 推理后安全返回分数
+    # scores = reranker_model.predict(pairs, batch_size=4, convert_to_numpy=True)
+    # print(f"   ⏱️ [阶段二: Rerank重排] 耗时: {time.perf_counter() - step2_start:.3f}秒")
 
-    # 将文档和分数打包，按分数从高到底排序，取前 3 个
-    scored_docs = sorted(zip(candidate_docs, scores), key=lambda x: x[1], reverse=True)
-    reranked_docs = [doc for doc, score in scored_docs[:3]]
+    # # 将文档和分数打包，按分数从高到底排序，取前 3 个
+    # scored_docs = sorted(zip(candidate_docs, scores), key=lambda x: x[1], reverse=True)
+    # reranked_docs = [doc for doc, score in scored_docs[:3]]
 
-    # reranked_docs = candidate_docs[:3]
+    reranked_docs = candidate_docs[:8]
 
     # 构建结构化证据列表（供 Tutor Agent 标注使用）
     retrieved_items = []
