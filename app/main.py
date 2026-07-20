@@ -12,8 +12,7 @@ from tracker import LearningTracker
 from redis_smart_cache import SmartCache
 from meta_agent import meta_analysis_agent
 
-# from langchain_community.vectorstores import Chroma
-from langchain_chroma import Chroma
+from langchain_community.vectorstores import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import TextLoader
 from langchain_community.document_loaders import PyPDFLoader

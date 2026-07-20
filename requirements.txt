@@ -9,8 +9,7 @@ langchain-community==0.4.2
 langchain-core>=0.1.0
 langchain-text-splitters>=0.0.1
 sentence-transformers>=2.2.2
-chromadb>=0.4.22
-langchain-chroma>=0.1.0
+chromadb==0.5.23
 
 # ================== 数据库与缓存 ==================
 # 核心 Redis 客户端库（必须包含，用于连接 Redis 服务端）
