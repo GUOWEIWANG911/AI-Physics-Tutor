@@ -5,11 +5,11 @@ pydantic>=2.5.0
 
 # ================== LangChain 与 AI 核心 ==================
 langchain>=0.1.0
-langchain-community==0.4.2
+langchain-community==0.0.38
 langchain-core>=0.1.0
 langchain-text-splitters>=0.0.1
 sentence-transformers>=2.2.2
-chromadb==0.5.23
+chromadb==0.4.24
 
 # ================== 数据库与缓存 ==================
 # 核心 Redis 客户端库（必须包含，用于连接 Redis 服务端）

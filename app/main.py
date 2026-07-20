@@ -224,15 +224,8 @@ def build_knowledge_base(file_paths, embeddings):
                 return vectorstore
             else:
                 print("警告：数据库存在但为空，将重新构建...")
-                raise ValueError("数据库为空")
         except Exception as e:
             print(f"加载现有数据库出错: {e}，将尝试重建...")
-            # 这里可以保留之前的删除逻辑，作为双重保险
-            if os.path.exists(db_path):
-                import shutil
-                shutil.rmtree(db_path)
-                print(f"已清除旧知识库目录: {db_path}")
-                os.makedirs(db_path, exist_ok=True)
     
     print("开始构建知识库...")
     
@@ -243,7 +236,7 @@ def build_knowledge_base(file_paths, embeddings):
             loader = PyPDFLoader(file_path)
             documents = loader.load()
 
-            # === 关键修改：通过映射表注入教材版本 ===
+            # 通过映射表注入教材版本
             filename = os.path.basename(file_path)
             # 从配置映射表获取人类可读标识（若未配置则回退到文件名）
             human_readable_source = TEXTBOOK_MAPPING.get(
