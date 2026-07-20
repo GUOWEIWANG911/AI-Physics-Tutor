@@ -262,6 +262,12 @@ def build_knowledge_base(file_paths, embeddings):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size = 500, chunk_overlap = 50)
     chunks = text_splitter.split_documents(all_documents)
 
+    # 无论是因为加载失败进入这里，还是因为空库进入这里，都先清空旧数据
+    if os.path.exists(db_path):
+        import shutil
+        shutil.rmtree(db_path)
+        print(f"已清除旧知识库目录: {db_path}")
+
     # 生成向量数据库
     vectorstore = Chroma.from_documents(documents=chunks, embedding=embeddings, persist_directory=db_path)
     print(f"知识库构建完成! 共包含{len(chunks)} 个知识片段")
