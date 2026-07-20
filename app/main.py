@@ -267,6 +267,7 @@ def build_knowledge_base(file_paths, embeddings):
         import shutil
         shutil.rmtree(db_path)
         print(f"已清除旧知识库目录: {db_path}")
+        os.makedirs(db_path, exist_ok=True)
 
     # 生成向量数据库
     vectorstore = Chroma.from_documents(documents=chunks, embedding=embeddings, persist_directory=db_path)
