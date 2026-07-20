@@ -262,12 +262,36 @@ def build_knowledge_base(file_paths, embeddings):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size = 500, chunk_overlap = 50)
     chunks = text_splitter.split_documents(all_documents)
 
-    # 无论是因为加载失败进入这里，还是因为空库进入这里，都先清空旧数据
+    # # 无论是因为加载失败进入这里，还是因为空库进入这里，都先清空旧数据
+    # if os.path.exists(db_path):
+    #     import shutil
+    #     shutil.rmtree(db_path)
+    #     print(f"已清除旧知识库目录: {db_path}")
+    #     os.makedirs(db_path, exist_ok=True)
+    # === 关键修改：用底层 API 替代 from_documents ===
     if os.path.exists(db_path):
         import shutil
         shutil.rmtree(db_path)
         print(f"已清除旧知识库目录: {db_path}")
         os.makedirs(db_path, exist_ok=True)
+
+    # 1. 先创建空的 Chroma 对象（此时 embedding_function 会被正确绑定）
+    vectorstore = Chroma(
+        persist_directory=db_path,
+        embedding_function=embeddings
+    )
+
+    # 2. 再手动调用 upsert 插入数据
+    texts = [chunk.page_content for chunk in chunks]
+    metadatas = [chunk.metadata for chunk in chunks]
+    ids = [str(i) for i in range(len(chunks))]
+
+    vectorstore._collection.upsert(
+        ids=ids,
+        documents=texts,
+        metadatas=metadatas,
+        embeddings=None  # 让 Chroma 内部自动调用 embedding_function 生成向量
+    )
 
     # 生成向量数据库
     vectorstore = Chroma.from_documents(documents=chunks, embedding=embeddings, persist_directory=db_path)
