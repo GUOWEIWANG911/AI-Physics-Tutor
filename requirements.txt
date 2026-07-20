@@ -6,7 +6,7 @@ pydantic>=2.5.0
 # ================== LangChain 与 AI 核心 ==================
 langchain==0.3.20
 langchain-community==0.3.20
-langchain-core==0.3.20
+langchain-core==0.3.41
 langchain-text-splitters==0.3.2
 langchain-deepseek==0.1.4
 sentence-transformers>=2.2.2
