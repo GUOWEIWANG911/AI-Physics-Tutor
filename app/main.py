@@ -263,9 +263,28 @@ def build_knowledge_base(file_paths, embeddings):
     chunks = text_splitter.split_documents(all_documents)
     print(f"【调试信息】文本分块完成，共 {len(chunks)} 个片段，准备开始生成向量...")
 
-    # 生成向量数据库
-    vectorstore = Chroma.from_documents(documents=chunks, embedding=embeddings, persist_directory=db_path)
-    print(f"知识库构建完成! 共包含{len(chunks)} 个知识片段")
+    # # 生成向量数据库
+    # vectorstore = Chroma.from_documents(documents=chunks, embedding=embeddings, persist_directory=db_path)
+    # print(f"知识库构建完成! 共包含{len(chunks)} 个知识片段")
+    print("【调试信息】正在手动为文本片段生成向量...")
+    # 1. 先提取所有文本
+    texts = [chunk.page_content for chunk in chunks]
+
+    # 2. 使用我们自己的 embeddings 对象生成向量
+    #    这一步会使用你配置的 Zhipu 或其他模型，而不是去下载默认模型
+    embeddings_list = embeddings.embed_documents(texts)
+    print(f"【调试信息】向量生成完成，共 {len(embeddings_list)} 个向量。")
+
+    # 3. 创建一个空的 Chroma 实例
+    vectorstore = Chroma(
+        embedding_function=embeddings, 
+        persist_directory=db_path
+    )
+
+    # 4. 手动将文本和对应的向量添加进去
+    print("【调试信息】正在将文本和向量添加到数据库...")
+    vectorstore.add_texts(texts=texts, embeddings=embeddings_list)
+    print("【调试信息】知识库构建完成！")
         
     return vectorstore
 
