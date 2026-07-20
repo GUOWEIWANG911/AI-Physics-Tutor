@@ -288,7 +288,13 @@ def build_knowledge_base(file_paths, embeddings):
 
     # 4. 手动将文本和对应的向量添加进去
     print("【调试信息】正在将文本和向量添加到数据库...")
-    vectorstore.add_texts(texts=texts, embeddings=embeddings_list)
+    # vectorstore.add_texts(texts=texts, embeddings=embeddings_list)
+    vectorstore._collection.add(
+        ids=[f"doc_{i}" for i in range(len(texts))],
+        documents=texts,
+        embeddings=embeddings_list,
+        metadatas=[chunk.metadata for chunk in chunks]  # 保留原始 metadata
+    )
     print("【调试信息】知识库构建完成！")
         
     return vectorstore
