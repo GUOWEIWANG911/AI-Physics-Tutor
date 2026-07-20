@@ -270,9 +270,14 @@ def build_knowledge_base(file_paths, embeddings):
     # 1. 先提取所有文本
     texts = [chunk.page_content for chunk in chunks]
 
-    # 2. 使用我们自己的 embeddings 对象生成向量
-    #    这一步会使用你配置的 Zhipu 或其他模型，而不是去下载默认模型
-    embeddings_list = embeddings.embed_documents(texts)
+    batch_size = 64
+    embeddings_list = []
+    for i in range(0, len(texts), batch_size):
+        batch = texts[i:i + batch_size]
+        batch_embeddings = embeddings.embed_documents(batch)
+        embeddings_list.extend(batch_embeddings)
+        print(f"【调试信息】已生成 {len(embeddings_list)}/{len(texts)} 个向量")
+
     print(f"【调试信息】向量生成完成，共 {len(embeddings_list)} 个向量。")
 
     # 3. 创建一个空的 Chroma 实例
