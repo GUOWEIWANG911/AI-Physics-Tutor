@@ -47,8 +47,8 @@ services:
       context: .
       dockerfile: Dockerfile.frontend # 假设你为前端创建了独立的Dockerfile
     container_name: myagent-frontend
-    # ports:
-    #   - "8501:8501"
+    ports:
+      - "8501:8501"
     command: >
       streamlit run app.py
       --server.enableXsrfProtection false
