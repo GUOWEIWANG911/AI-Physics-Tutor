@@ -94,12 +94,7 @@ def retrieval_agent(state, vectorstore, cache_manager, reranker_model):
     step1_start = time.perf_counter()
     candidate_docs = vectorstore.similarity_search(
         search_query, 
-        k=6,
-        search_type="mmr",
-        search_kwargs={
-            "fetch_k": 20,
-            "lambda_mult": 0.5
-        }
+        k=6
         # score_threshold=0.6  # 过滤低相关文档
     )
     print(f"   ⏱️ [阶段一: 向量召回] 耗时: {time.perf_counter() - step1_start:.3f}秒")
