@@ -9,6 +9,7 @@ COPY requirements.txt .
 # RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt \
+    --default-timeout=1000 \
     -i https://pypi.tuna.tsinghua.edu.cn/simple \
     --extra-index-url https://download.pytorch.org/whl/cpu
 
