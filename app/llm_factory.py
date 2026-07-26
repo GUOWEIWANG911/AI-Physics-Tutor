@@ -2,12 +2,14 @@ import os
 import time
 import config
 import logging
+import functools
 
 logger = logging.getLogger(__name__)
 
 def async_log_llm_performance(func):
     """LLM 性能监控装饰器"""
-    def wrapper(*args, **kwargs):
+    @functools.wraps(func)
+    async def wrapper(*args, **kwargs):
         start_time = time.time()
         result = func(*args, **kwargs)
         elapsed = time.time() - start_time
