@@ -43,7 +43,7 @@ MODELS = {
     },
     "deepseek": {
         "embedding": {"model": "deepseek-embedding-v3", "base_url": "https://api.deepseek.com/v1"},
-        "llm": {"model": "deepseek-chat", "temperature": 0.7}
+        "llm": {"model": "deepseek-v4-flash", "temperature": 0.7}
     },
     "qwen": {
         "embedding": {"model": "text-embedding-v3", "base_url": "https://dashscope.aliyuncs.com/compatible-model/v1"},
