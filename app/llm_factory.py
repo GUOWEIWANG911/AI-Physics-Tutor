@@ -1,38 +1,6 @@
 import os
 import time
 import config
-import logging
-import functools
-from fastapi.responses import StreamingResponse
-
-logger = logging.getLogger(__name__)
-
-def async_log_llm_performance(func):
-    """LLM 性能监控装饰器"""
-    @functools.wraps(func)
-    async def wrapper(*args, **kwargs):
-        start_time = time.time()
-        result = func(*args, **kwargs)
-        elapsed = time.time() - start_time
-
-        # 如果是 StreamingResponse，不尝试提取 Token（流式响应无法提前知道 Token 数）
-        if isinstance(result, StreamingResponse):
-            logger.info(f"📊 流式响应已启动 | 耗时: {elapsed:.2f}s")
-            return result
-
-        # 非流式响应才提取 Token 信息
-        usage = getattr(result, 'response_metadata', {}).get('usage', {})
-        input_tokens = usage.get('prompt_tokens', 'N/A')
-        output_tokens = usage.get('completion_tokens', 'N/A')
-        total_tokens = usage.get('total_tokens', 'N/A')
-
-        logger.info(
-            f"📊 LLM 调用耗时: {elapsed:.2f}s | "
-            f"输入: {input_tokens} | 输出: {output_tokens} | 总计: {total_tokens}"
-        )
-        return result
-    return wrapper
-
 
 # 创建一个全局变量来“缓存”LLM实例
 _llm_instance = None
