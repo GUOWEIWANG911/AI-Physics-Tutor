@@ -133,10 +133,25 @@ User-Agent: {request.headers.get('user-agent', 'Unknown')}
 
 class AccessNotificationMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        # 1. 过滤健康检查
+        if request.url.path == "/health/":
+            return await call_next(request)
+
+        # 2. 获取客户端只是IP
+        client_ip = request.headers.get('x-real-ip', request.client.host)
+        cache_key = f"notify_limit:{client_ip}"
+
+        # 3. Redis 限流判断：60s内已通知则通过
+        if session_cache.exists(cache_key):
+            return await call_next(request) 
+
+        # 4. 设置限流标记（60秒过期）
+        session_cache.setex(cache_key, 60, "1")
+
+        # 5. 处理请求并异步发送邮件
         response = await call_next(request)
         asyncio.create_task(send_access_notification(request))
         return response
-
 
 # 4. 初始化 FastAPI 应用
 app = FastAPI(title="AI 物理辅导系统 API", version="1.0",lifespan=lifespan)
