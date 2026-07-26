@@ -146,7 +146,7 @@ class AccessNotificationMiddleware(BaseHTTPMiddleware):
             return await call_next(request) 
 
         # 4. 设置限流标记（60秒过期）
-        session_cache.setex(cache_key, 60, "1")
+        session_cache.redis_client.setex(cache_key, 60, "1")
 
         # 5. 处理请求并异步发送邮件
         response = await call_next(request)
