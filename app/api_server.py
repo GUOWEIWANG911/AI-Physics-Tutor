@@ -20,6 +20,7 @@ from redis_smart_cache import SmartCache
 from config import TEXTBOOK_FILES, RERANKER_MODEL_PATH
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+from llm_factory import async_log_llm_performance
 
 # 导入核心逻辑
 from main import (
@@ -186,6 +187,7 @@ async def health_check():
 
 # 7. 定义辅导问答接口
 @app.post("/ask/")
+@async_log_llm_performance
 async def ask_tutor(request: QuestionRequest):
     # 处理 session ID（隔离不同学生的对话）
     session_id = request.session_id or str(uuid.uuid4())

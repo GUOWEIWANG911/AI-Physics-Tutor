@@ -1,5 +1,30 @@
 import os
+import time
 import config
+import logging
+
+logger = logging.getLogger(__name__)
+
+def async_log_llm_performance(func):
+    """LLM 性能监控装饰器"""
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        elapsed = time.time() - start_time
+
+        # LangChain AIMessage 的 Token 信息在 response_metadata 里
+        usage = getattr(result, 'response_metadata', {}).get('usage', {})
+        input_tokens = usage.get('prompt_tokens', 'N/A')
+        output_tokens = usage.get('completion_tokens', 'N/A')
+        total_tokens = usage.get('total_tokens', 'N/A')
+
+        logger.info(
+            f"📊 LLM 调用耗时: {elapsed:.2f}s | "
+            f"输入: {input_tokens} | 输出: {output_tokens} | 总计: {total_tokens}"
+        )
+        return result
+    return wrapper
+
 
 # 创建一个全局变量来“缓存”LLM实例
 _llm_instance = None
