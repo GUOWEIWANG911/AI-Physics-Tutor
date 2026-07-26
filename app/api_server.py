@@ -142,7 +142,7 @@ class AccessNotificationMiddleware(BaseHTTPMiddleware):
         cache_key = f"notify_limit:{client_ip}"
 
         # 3. Redis 限流判断：60s内已通知则通过
-        if session_cache.exists(cache_key):
+        if session_cache.redis_client.exists(cache_key):
             return await call_next(request) 
 
         # 4. 设置限流标记（60秒过期）
