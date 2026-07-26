@@ -20,7 +20,6 @@ from redis_smart_cache import SmartCache
 from config import TEXTBOOK_FILES, RERANKER_MODEL_PATH
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
-from llm_factory import async_log_llm_performance
 
 # 导入核心逻辑
 from main import (
