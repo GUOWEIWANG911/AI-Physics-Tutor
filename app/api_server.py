@@ -4,8 +4,10 @@ import json
 import uuid
 import uvicorn
 import asyncio
+import smtplib
+from email.mime.text import MIMEText
 import traceback
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
@@ -17,6 +19,7 @@ from sentence_transformers import CrossEncoder
 from redis_smart_cache import SmartCache
 from config import TEXTBOOK_FILES, RERANKER_MODEL_PATH
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 # 导入核心逻辑
 from main import (
@@ -94,6 +97,47 @@ async def lifespan(app: FastAPI):
     cpu_pool.shutdown(wait=True)
 
 
+# 从 .env 文件读取邮件配置
+SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.163.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
+EMAIL_USER = os.getenv("EMAIL_USER", "")
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD", "")
+NOTIFY_TO = os.getenv("NOTIFY_TO", "")
+
+async def send_access_notification(request: Request):
+    """异步发送邮件通知"""
+    if not all([EMAIL_USER, EMAIL_PASSWORD, NOTIFY_TO]):
+        return
+
+    try:
+        subject = f"系统访问通知：{request.method} {request.url.path}"
+        body = f"""
+时间：{request.headers.get('x-real-ip', request.client.host)}
+路径：{request.url.path}
+方法：{request.method}
+User-Agent: {request.headers.get('user-agent', 'Unknown')}
+"""
+        msg = MIMEText(body, "plain", "utf-8")
+        msg["Subject"] = subject
+        msg["From"] = EMAIL_USER
+        msg["To"] = NOTIFY_TO
+
+        server = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT)
+        server.login(EMAIL_USER, EMAIL_PASSWORD)
+        server.sendmail(EMAIL_USER, [NOTIFY_TO], msg.as_string())
+        server.quit() 
+        print(f"✅ 访问通知邮件已发送: {request.url.path}")
+    except Exception as e:
+        print(f"发送访问通知邮件失败： {str(e)}")
+
+
+class AccessNotificationMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        asyncio.create_task(send_access_notification(request))
+        return response
+
+
 # 4. 初始化 FastAPI 应用
 app = FastAPI(title="AI 物理辅导系统 API", version="1.0",lifespan=lifespan)
 
@@ -104,6 +148,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(AccessNotificationMiddleware)
 
 # 5. 定义请求的数据模型（规范前端传参）
 class QuestionRequest(BaseModel):
@@ -216,42 +262,6 @@ async def ask_tutor(request: QuestionRequest):
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"辅导系统内部错误: {str(e)}")
-
-    #     # 6. 获取最终回复并更新历史
-    #     reply = current_state.get("ai_response", "哎呀，辅导老师刚才走神了，能再问一次吗？")
-
-    #     # 7. 更新本地历史
-    #     chat_history.append(HumanMessage(content=request.question))
-    #     chat_history.append(AIMessage(content=reply))
-        
-    #     # 限制历史长度（防止内存溢出）
-    #     max_history = 20
-    #     if len(chat_history) > max_history:  # 假设最大保留20条
-    #         chat_history = chat_history[-max_history:]
-            
-    #     # 将更新后的历史序列化并存入 Redis
-    #     # 将 LangChain 的 Message 对象转为普通字典以便 JSON 序列化
-    #     history_to_save = [
-    #         {"type": "human", "content": msg.content} if isinstance(msg, HumanMessage) else {"type": "ai", "content": msg.content}
-    #         for msg in chat_history
-    #     ]
-    #     session_cache.set(redis_key, json.dumps(history_to_save))
-
-    #     return {"reply": reply, "session_id": session_id}
-
-    # except Exception as e:
-    #     import traceback
-    #     print("\n" + "="*50)
-    #     print("捕获到一个未处理的异常！详细信息如下：")
-    #     print("="*50)
-    #     # 这行会打印出完整的错误堆栈，告诉我们错误发生在哪个文件、哪一行
-    #     traceback.print_exc()
-    #     print("="*50)
-    #     # --- “侦探”代码结束 ---
-        
-    #     # 最后，再把错误返回给前端
-    #     raise HTTPException(status_code=500, detail=f"辅导系统内部错误: {str(e)}")
-    
         
 # 8. 启动服务
 if __name__ == "__main__":
