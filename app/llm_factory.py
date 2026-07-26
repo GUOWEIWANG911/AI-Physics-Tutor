@@ -3,6 +3,7 @@ import time
 import config
 import logging
 import functools
+from fastapi.responses import StreamingResponse
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +15,12 @@ def async_log_llm_performance(func):
         result = func(*args, **kwargs)
         elapsed = time.time() - start_time
 
-        # LangChain AIMessage 的 Token 信息在 response_metadata 里
+        # 如果是 StreamingResponse，不尝试提取 Token（流式响应无法提前知道 Token 数）
+        if isinstance(result, StreamingResponse):
+            logger.info(f"📊 流式响应已启动 | 耗时: {elapsed:.2f}s")
+            return result
+
+        # 非流式响应才提取 Token 信息
         usage = getattr(result, 'response_metadata', {}).get('usage', {})
         input_tokens = usage.get('prompt_tokens', 'N/A')
         output_tokens = usage.get('completion_tokens', 'N/A')
