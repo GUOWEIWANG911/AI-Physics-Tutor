@@ -4,6 +4,7 @@ import json
 import uuid
 import uvicorn
 import asyncio
+import hashlib
 import smtplib
 from email.mime.text import MIMEText
 import traceback
@@ -36,6 +37,158 @@ cpu_pool = ThreadPoolExecutor(max_workers=4)
 
 # 2. 记录系统是否真正就绪
 is_system_ready = False
+
+# 异步摘要生成与任务管理
+_pending_summary_tasks: dict[str, asyncio.Task] = {}
+
+def _compute_snapshot_hash(messages: list) -> str:
+    """计算消息快照的哈希值，用于检测竞态"""
+    content = json.dumps(messages, sort_keys=True, ensure_ascii=False)
+    return hashlib.md5(content.encode()).hexdigest()
+
+def _should_generate_summary(history_to_save: list) -> bool:
+    """
+    摘要触发阈值判断：轮数 >= 8 或 Token >= 2000
+    减少不必要的后台任务，降低系统负载
+    """ 
+    # 阈值1: 对话轮数 >= 8
+    if len(history_to_save) >= 8:
+        return True
+    
+    # 阈值2：总 Token 数 >= 2000 (粗略估算：中文字符数 * 1.5 + 英文单词数)
+    total_tokens = 0
+    for msg in history_to_save:
+        content = msg.get("content", "")
+        # 中文按数字估算，英文按空格分割估算
+        cn_chars = len(re.findall(r'[\u4e00-\u9fff]', content))
+        en_words = len(re.findall(r'[a-zA-z]+', content))
+        total_tokens += cn_chars * 1.5 + en_words
+
+    return total_tokens >= 2000
+
+async def _background_generate_summary(
+        session_id: str,
+        snapshot_messages: list,
+        snapshot_hash: str,
+        llm
+):
+    """后台异步生成摘要（带快照保护）"""
+    try:
+        # Step 1: 执行摘要生成
+        summary = generate_session_summary(snapshot_messages, llm)
+        if not summary:
+            return
+        
+        # Step 2: 校验快照是否过期（防止覆盖新消息）
+        redis_key = f"session:{session_id}"
+        current_raw = session_cache.get(redis_key)
+        if not current_raw:
+            return
+
+        current_messages = json.loads(current_raw)
+        current_hash = _compute_snapshot_hash(current_messages)
+
+        if current_hash != snapshot_hash:
+            print(f"[警告] 会话 {session_id} 快照已过期，跳过摘要写入")
+            return
+        
+        # Step 3: 快照一致，安全写入摘要
+        save_session_summary(session_id, summary)
+        print(f"[异步] 会话 {session_id} 摘要生成并写入成功")
+
+    except asyncio.CancelledError:
+        print(f"[异步] 会话 {session_id} 摘要任务被取消")
+    except Exception as e:
+        print(f"[错误] 会话 {session_id} 摘要生成失败： {e}")
+
+def _launch_background_summary(session_id: str, messages: list, llm):
+    """启动后台摘要任务（防重复触发 + 阈值判断）"""
+    # 阈值判断：不满足条件则不启动任务
+    if not _should_generate_summary(messages):
+        print(f"[异步] 会话 {session_id} 未达摘要触发阈值，跳过")
+        return
+
+    # 取消该会话之前的摘要任务（如果还在运行）
+    if session_id in _pending_summary_tasks:
+        _pending_summary_tasks[session_id].cancel()
+    
+    # 记录当前快照信息
+    snapshot_hash = _compute_snapshot_hash(messages)
+    
+    # 创建新的异步任务
+    task = asyncio.create_task(
+        _background_generate_summary(session_id, messages, snapshot_hash, llm)
+    )
+    _pending_summary_tasks[session_id] = task
+
+def generate_session_summary(history: list, llm) -> str:
+    """生成会话摘要（用于长期记忆）"""
+    if len(history) < 8:
+        return ""
+    
+    recent_history = history[-8:]
+    summary_prompt = f"""
+    你是一位教学记录员。请根据以下师生对话，生成一段简洁的【学习摘要】。
+    摘要需包含：
+    1. 学生当前学习的核心知识点
+    2. 学生的理解难点或常见错误
+    3. 已确认的学生偏好（如举例方式、表达风格）
+    4. 待解决的遗留问题
+
+    【对话历史】：
+    {json.dumps(recent_history, ensure_ascii=False)}
+
+    【摘要】（100字以内）：
+    """
+    
+    try:
+        response = llm.invoke(summary_prompt)
+        summary = response.content.strip()
+        return summary
+    except Exception as e:
+        print(f"[警告] 生成会话摘要失败: {e}")
+        return ""
+
+def save_session_summary(session_id: str, summary: str):
+    """保存会话摘要到Redis（7天过期）"""
+    if not summary:
+        return
+    redis_key = f"summary:{session_id}"
+    session_cache.redis_client.setex(redis_key, 7 * 24 * 3600, summary)
+
+# 获取会话历史接口
+@app.get("/history/{session_id}")
+def get_session_history(
+    session_id: str,
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0)
+):
+    """获取会话历史（支持分页）"""
+    try:
+        redis_key = f"session:{session_id}"
+        history_raw = session_cache.get(redis_key)
+        
+        if not history_raw:
+            return []
+        
+        history_list = json.loads(history_raw)
+        
+        if offset >= len(history_list):
+            return []
+        
+        paginated = history_list[offset:offset + limit]
+        
+        if not isinstance(paginated, list):
+            return []
+        
+        return paginated
+    
+    except json.JSONDecodeError:
+        print(f"[错误] 解析会话历史失败: {session_id}")
+        return []
+    except Exception as e:
+        print(f"[错误] 获取会话历史异常: {e}")
+        return []
 
 # 3. 定义应用的生命周期（启动时加载模型，关闭时清理）
 @asynccontextmanager
@@ -265,8 +418,14 @@ async def ask_tutor(request: QuestionRequest):
                     {"type": "human", "content": msg.content} if isinstance(msg, HumanMessage) else {"type": "ai", "content": msg.content}
                     for msg in chat_history
                 ]
-                session_cache.set(redis_key, json.dumps(history_to_save))
-                print(f"[Stream] 回答生成完毕，历史已更新。")
+
+                # 保存历史时设置 2 小时 TTL
+                session_cache.set(redis_key, json.dumps(history_to_save), ttl=7200)
+
+                # 异步启动摘要生成（带阈值判断）
+                _launch_background_summary(session_id, history_to_save, llm)
+
+                print(f"[Stream] 回答生成完毕，历史已更新，摘要任务已启动。")
             
             except Exception as e:
                 traceback.print_exc()

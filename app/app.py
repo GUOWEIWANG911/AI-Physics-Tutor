@@ -87,7 +87,22 @@ if submit_button:
         if is_new_chat and is_too_short and is_greeting:
             st.warning("请提出具体的物理问题（例如：'惯性是什么？'）")
         else:
-            # st.session_state.chat_history.append({"role": "user", "content": user_text})
+            # 从后端同步历史对话（带分页与降级）
+            try:
+                history_url = f"{backend_base}/history/{st.session_state.session_id}?limit=50"
+                resp = requests.get(history_url, timeout=5)
+                if resp.status_code == 200:
+                    history_data = resp.json()
+                    if isinstance(history_data, list) and len(history_data) > 0:
+                        st.session_state.chat_history = history_data
+                        st.toast(f"✅ 已同步 {len(history_data)} 条历史对话", icon="📚")
+                    else:
+                        st.toast("ℹ️ 暂无历史对话，将作为新话题处理", icon="📝")
+                else:
+                    st.toast("ℹ️ 暂无历史对话，将作为新话题处理", icon="📝")
+            except Exception as e:
+                st.warning(f"⚠️ 无法同步历史对话: {e}，将作为新话题处理")
+
             payload = {
                 "question": user_text,
                 "session_id": st.session_state.session_id
@@ -99,6 +114,8 @@ if submit_button:
             try:
                 response = requests.post(FASTAPI_URL, json=payload, stream=True, timeout=300)
                 response.raise_for_status()
+
+                st.session_state.chat_history.append({"role": "user", "content": user_text.strip()})
 
                 for line in response.iter_lines():
                     if line:

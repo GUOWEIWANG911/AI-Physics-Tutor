@@ -31,7 +31,7 @@ def memory_agent(state, llm):
 
     # 简单策略：如果历史记录超过 6 条（3轮对话），则进行总结压缩
     if len(history) > 6:
-        summary_prompt = f"""请根据以下对话历史，用1~2句话总结学生的[当前学习状态]和[知识掌握情况]。
+        summary_prompt = f"""请根据以下对话历史，用 1~2 句话总结学生的[当前学习状态]和[知识掌握情况]。
         对话历史：{history}
         当前问题：{user_question}
         只输出总结，不要输出其他废话。"""
@@ -71,7 +71,6 @@ def retrieval_agent(state, vectorstore, cache_manager, reranker_model):
     student_summary = state.get("student_summary", "")
 
     # [优化 1]：使用纯粹的“用户问题”作为缓存 Key，避免学情摘要变化导致缓存失效
-    # cache_key = f"retrieval:{user_question}"
     cleaned_question = clean_question_for_cache(user_question)
     cache_key = f"retrieval:{cleaned_question}"
 
@@ -183,7 +182,8 @@ def tutor_agent(state, llm):
 - 当前未检索到教材依据，请基于通用物理知识回答，但需注明"此回答未找到教材原文支持"。
 """
 
-    # 组装 System Pormpt
+    # 组装 System Prompt
+    strategies_section = f"\n{dynamic_strategies}" if dynamic_strategies else ""
     system_prompt = f"""你是一个初中理科辅导老师。
 【当前学情】：{student_summary}
 【参考资料】：{context}
@@ -191,9 +191,9 @@ def tutor_agent(state, llm):
 【辅导要求】：
 1. 优先使用启发式提问，严禁直接给答案，严禁超纲。
 2. 必须结合【历史对话】上下文，不要重复提问，不要答非所问。
-3. 如果学生明确表示“直接告诉我”或连续2次困惑，立刻停止提问，直接给步骤和答案。
+3. 如果学生明确表示“直接告诉我”或连续 2 次困惑，立刻停止提问，直接给步骤和答案。
 
-{dynamic_strategies}
+{strategies_section}
 
 请根据以上原则和历史教训，回答学生的问题。
 """
@@ -202,9 +202,7 @@ def tutor_agent(state, llm):
     messages.extend(history)
     messages.append(HumanMessage(content=user_question))
 
-    # response = llm.invoke(messages)
-    # state["ai_response"] = response.content
-     # 2. 【关键修改】：不再调用 llm.invoke(messages)
+    # 不再调用 llm.invoke(messages)
     # 而是把组装好的 messages 存入 state，留给 /ask 接口去流式输出
     state["messages"] = messages  
 
@@ -311,24 +309,37 @@ def get_dynamic_strategies():
     if not os.path.exists(db_file):
         print(f"[策略] 未找到数据库文件: {db_file}，跳过策略生成。")
         return ""
-    
+
+    conn = None
     try:
         conn = sqlite3.connect(db_file)
         cur = conn.cursor()
+
+        # 优先查差评
         cur.execute('''
             SELECT query, llm_answer FROM learning_history 
             WHERE feedback = 'negative' 
             ORDER BY timestamp DESC LIMIT 5
         ''')
-        negative_records = [{"query": row[0], "llm_answer": row[1]} for row in cur.fetchall()]
-        conn.close()
-        if not negative_records:
-            return ""  # 没有差评，返回空字符串
-            
+        records = [{"query": row[0], "llm_answer": row[1]} for row in cur.fetchall()]
+
+        # 没有差评时，读取最近5条对话作为分析素材
+        cur.execute('''
+            SELECT query, llm_answer FROM learning_history 
+            ORDER BY timestamp DESC LIMIT 5
+        ''')
+        records = [{"query": row[0], "llm_answer": row[1]} for row in cur.fetchall()]
+
+        if not records:
+            return ""
+    
         # 调用 Meta-Agent 生成策略
-        strategies = meta_analysis_agent(negative_records)
+        strategies = meta_analysis_agent(records)
         return f"\n\n[历史教训与改进策略(必须严格遵守)]：\n{strategies}"
     
     except Exception as e:
         print(f"[策略] 读取数据库失败: {e}")
         return ""
+    finally:
+        if conn:
+            conn.close()
