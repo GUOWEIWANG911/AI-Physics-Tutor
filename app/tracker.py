@@ -71,6 +71,8 @@ class LearningTracker:
             "feedback": feedback
         })
 
+        return record_id
+
     def update_feedback(self, query_timestamp, feedback):
         """根据时间戳更新某次交互的反馈（保持原有接口不变）"""
         conn = sqlite3.connect(self.db_name)
