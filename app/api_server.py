@@ -210,6 +210,15 @@ async def lifespan(app: FastAPI):
     print("所有模型加载完毕！系统已就绪。")
     global is_system_ready
     is_system_ready = True # 记录系统已就绪
+
+    # 此时模型已加载完成，数据库初始化不会阻塞关键路径
+    try:
+        tracker = LearningTracker()
+        tracker._init_db()
+        print("✅ 学习历史数据库已初始化")
+    except Exception as e:
+        print(f"⚠️ 数据库初始化失败: {e}")
+
     yield  # 服务在这里保持运行，处理各种请求
     is_system_ready = False
     

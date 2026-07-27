@@ -331,6 +331,7 @@ def get_dynamic_strategies():
         records = [{"query": row[0], "llm_answer": row[1]} for row in cur.fetchall()]
 
         if not records:
+            print("[策略] 暂无历史数据，跳过策略生成。")
             return ""
     
         # 调用 Meta-Agent 生成策略
