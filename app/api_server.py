@@ -10,6 +10,7 @@ from email.mime.text import MIMEText
 import traceback
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import StreamingResponse
+from fastapi import Query
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 from concurrent.futures import ThreadPoolExecutor
@@ -155,40 +156,6 @@ def save_session_summary(session_id: str, summary: str):
         return
     redis_key = f"summary:{session_id}"
     session_cache.redis_client.setex(redis_key, 7 * 24 * 3600, summary)
-
-# 获取会话历史接口
-@app.get("/history/{session_id}")
-def get_session_history(
-    session_id: str,
-    limit: int = Query(default=50, ge=1, le=100),
-    offset: int = Query(default=0, ge=0)
-):
-    """获取会话历史（支持分页）"""
-    try:
-        redis_key = f"session:{session_id}"
-        history_raw = session_cache.get(redis_key)
-        
-        if not history_raw:
-            return []
-        
-        history_list = json.loads(history_raw)
-        
-        if offset >= len(history_list):
-            return []
-        
-        paginated = history_list[offset:offset + limit]
-        
-        if not isinstance(paginated, list):
-            return []
-        
-        return paginated
-    
-    except json.JSONDecodeError:
-        print(f"[错误] 解析会话历史失败: {session_id}")
-        return []
-    except Exception as e:
-        print(f"[错误] 获取会话历史异常: {e}")
-        return []
 
 # 3. 定义应用的生命周期（启动时加载模型，关闭时清理）
 @asynccontextmanager
@@ -336,6 +303,40 @@ async def health_check():
         return {"status": "ready"}
     else:
         return {"status": "loading"}
+
+# 获取会话历史接口
+@app.get("/history/{session_id}")
+def get_session_history(
+    session_id: str,
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0)
+):
+    """获取会话历史（支持分页）"""
+    try:
+        redis_key = f"session:{session_id}"
+        history_raw = session_cache.get(redis_key)
+        
+        if not history_raw:
+            return []
+        
+        history_list = json.loads(history_raw)
+        
+        if offset >= len(history_list):
+            return []
+        
+        paginated = history_list[offset:offset + limit]
+        
+        if not isinstance(paginated, list):
+            return []
+        
+        return paginated
+    
+    except json.JSONDecodeError:
+        print(f"[错误] 解析会话历史失败: {session_id}")
+        return []
+    except Exception as e:
+        print(f"[错误] 获取会话历史异常: {e}")
+        return []
 
 # 7. 定义辅导问答接口
 @app.post("/ask/")
