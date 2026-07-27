@@ -127,6 +127,12 @@ if submit_button:
                         if decoded_line.startswith("data: "):
                             json_str = decoded_line[6:]
                             data = json.loads(json_str)
+
+                            if "record_id" in data:
+                                # 更新 chat_history 中最后一条 AI 消息的 id
+                                if st.session_state.chat_history and st.session_state.chat_history[-1]["role"] == "assistant":
+                                    st.session_state.chat_history[-1]["id"] = data["record_id"]
+                                continue
                             
                             if data.get("done"):
                                 break
@@ -149,8 +155,53 @@ if submit_button:
 # ================= 历史对话展示区 =================
 st.divider()
 st.subheader("💬 当前会话历史")
+# for msg in st.session_state.chat_history:
+#     with st.chat_message(msg["role"]):
+#         st.markdown(msg["content"])
 for msg in st.session_state.chat_history:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
+    role = msg.get("role") or msg.get("type")
+    content = msg.get("content", "")
+    record_id = msg.get("id")  # 获取数据库记录ID
+
+    if role == "human":
+        role = "user"
+    elif role == "ai":
+        role = "assistant"
+
+    if role and content:
+        with st.chat_message(role):
+            st.markdown(content)
+
+        # ✅ 新增：为 AI 回答添加评价按钮
+        if role == "assistant" and record_id:
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("👍 有帮助", key=f"pos_{record_id}"):
+                    try:
+                        resp = requests.post(
+                            f"{backend_base}/feedback/",
+                            json={"record_id": record_id, "feedback": "positive"},
+                            timeout=5
+                        )
+                        if resp.status_code == 200:
+                            st.toast("感谢反馈！", icon="✅")
+                        else:
+                            st.toast("反馈提交失败", icon="❌")
+                    except Exception:
+                        st.toast("网络异常，请稍后重试", icon="⚠️")
+            with col2:
+                if st.button("👎 没帮助", key=f"neg_{record_id}"):
+                    try:
+                        resp = requests.post(
+                            f"{backend_base}/feedback/",
+                            json={"record_id": record_id, "feedback": "negative"},
+                            timeout=5
+                        )
+                        if resp.status_code == 200:
+                            st.toast("感谢反馈！", icon="✅")
+                        else:
+                            st.toast("反馈提交失败", icon="❌")
+                    except Exception:
+                        st.toast("网络异常，请稍后重试", icon="⚠️")
 
     

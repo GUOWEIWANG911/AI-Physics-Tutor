@@ -22,6 +22,7 @@ from redis_smart_cache import SmartCache
 from config import TEXTBOOK_FILES, RERANKER_MODEL_PATH
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+from pydantic import BaseModel
 
 # 导入核心逻辑
 from main import (
@@ -29,6 +30,16 @@ from main import (
     LearningTracker,
     memory_agent, retrieval_agent, tutor_agent, get_dynamic_strategies
 )
+
+_tracker_instance = None
+
+def get_tracker():
+    global _tracker_instance
+    if _tracker_instance is None:
+        _tracker_instance = LearningTracker()
+        _tracker_instance._init_db()
+    return _tracker_instance
+
 
 # 初始化 Redis 客户端（用于存储会话历史）
 session_cache = SmartCache()
@@ -213,7 +224,7 @@ async def lifespan(app: FastAPI):
 
     # 此时模型已加载完成，数据库初始化不会阻塞关键路径
     try:
-        tracker = LearningTracker()
+        tracker = get_tracker()
         tracker._init_db()
         print("✅ 学习历史数据库已初始化")
     except Exception as e:
@@ -347,6 +358,22 @@ def get_session_history(
         print(f"[错误] 获取会话历史异常: {e}")
         return []
 
+class FeedbackRequest(BaseModel):
+    record_id: int
+    feedback: str  # "positive" 或 "negative"
+
+@app.post("/feedback/")
+async def update_feedback(req: FeedbackRequest):
+    """接收前端评价，更新数据库反馈字段"""
+    from tracker import LearningTracker
+    tracker = LearningTracker()
+    success = tracker.update_feedback_by_id(req.record_id, req.feedback)
+    
+    if success:
+        return {"status": "ok", "message": "反馈已记录"}
+    else:
+        return {"status": "error", "message": "记录不存在或更新失败"}
+
 # 7. 定义辅导问答接口
 @app.post("/ask/")
 async def ask_tutor(request: QuestionRequest):
@@ -415,6 +442,20 @@ async def ask_tutor(request: QuestionRequest):
 
                 # 发送结束标志
                 yield f"data: {json.dumps({'done': True})}\n\n"
+
+                # 从 current_state 中提取 retrieval_agent 保存的原始文档列表
+                retrieved_docs = current_state.get("retrieved_evidence", [])
+
+                tracker = get_tracker()
+                record_id = tracker.log_interaction(
+                    query=request.question,
+                    retrieved_docs=retrieved_docs,
+                    llm_answer=full_response,
+                    feedback=None
+                )
+
+                # 将 record_id 通过 SSE 推送给前端
+                yield f"data: {json.dumps({'record_id': record_id})}\n\n"
 
                 # 流式输出结束后，更新 Redis 历史
                 chat_history.append(HumanMessage(content=request.question))
