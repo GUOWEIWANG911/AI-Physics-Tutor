@@ -94,7 +94,11 @@ if submit_button:
                 if resp.status_code == 200:
                     history_data = resp.json()
                     if isinstance(history_data, list) and len(history_data) > 0:
-                        st.session_state.chat_history = history_data
+                        st.session_state.chat_history = [
+                            {"role": "user" if msg.get("type") == "human" else "assistant",
+                             "content": msg.get("content", "")}
+                            for msg in history_data
+                        ]
                         st.toast(f"✅ 已同步 {len(history_data)} 条历史对话", icon="📚")
                     else:
                         st.toast("ℹ️ 暂无历史对话，将作为新话题处理", icon="📝")
